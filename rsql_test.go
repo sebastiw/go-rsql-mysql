@@ -389,6 +389,188 @@ func TestParser_ProcessMongo(t *testing.T) {
 	}
 }
 
+func TestParser_ProcessMySQL(t *testing.T) {
+	tests := []struct {
+		name            string
+		s               string
+		options         []func(*ProcessOptions) error
+		customOperators []Operator
+		keyTransformers []func(s string) string
+		want            string
+		wantErr         bool
+	}{
+		{
+			name: "empty",
+			s:    "",
+			want: "",
+		},
+		{
+			name: "==",
+			s:    "a==1",
+			want: `a = 1`,
+		},
+		{
+			name: "!=",
+			s:    "a!=1",
+			want: `a != 1`,
+		},
+		{
+			name: "=gt=",
+			s:    "a=gt=1",
+			want: `a > 1`,
+		},
+		{
+			name: "=ge=",
+			s:    "a=ge=1",
+			want: `a >= 1`,
+		},
+		{
+			name: "=lt=",
+			s:    "a=lt=1",
+			want: `a < 1`,
+		},
+		{
+			name: "=le=",
+			s:    "a=le=1",
+			want: `a <= 1`,
+		},
+		{
+			name: "=in=",
+			s:    "a=in=(1,2,3)",
+			want: `a IN (1,2,3)`,
+		},
+		{
+			name: "=out=",
+			s:    "a=out=(1,2,3)",
+			want: `a NOT IN (1,2,3)`,
+		},
+		{
+			name: "(a==1)",
+			s:    "(a==1)",
+			want: `a = 1`,
+		},
+		{
+			name: "a==1;b==2",
+			s:    "a==1;b==2",
+			want: `(a = 1 AND b = 2)`,
+		},
+		{
+			name: "a==1,b==2",
+			s:    "a==1,b==2",
+			want: `(a = 1 OR b = 2)`,
+		},
+		{
+			name: "a==1;b==2,c==1",
+			s:    "a==1;b==2,c==1",
+			want: `((a = 1 AND b = 2) OR c = 1)`,
+		},
+		{
+			name: "(a==1;b==2),c=gt=5",
+			s:    "(a==1;b==2),c=gt=5",
+			want: `((a = 1 AND b = 2) OR c > 5)`,
+		},
+		{
+			name: "c==1,(a==1;b==2)",
+			s:    "c==1,(a==1;b==2)",
+			want: `(c = 1 OR (a = 1 AND b = 2))`,
+		},
+		{
+			name: "a==1;(b==1,c==2)",
+			s:    "a==1;(b==1,c==2)",
+			want: `(a = 1 AND (b = 1 OR c = 2))`,
+		},
+		{
+			name: "(a==1,b==1);(c==1,d==2)",
+			s:    "(a==1,b==1);(c==1,d==2)",
+			want: `((a = 1 OR b = 1) AND (c = 1 OR d = 2))`,
+		},
+		{
+			name: "string value with quotes",
+			s:    `status=="A"`,
+			want: `status = "A"`,
+		},
+		{
+			name: "combined with string",
+			s:    `status=="A",qty=lt=30`,
+			want: `(status = "A" OR qty < 30)`,
+		},
+		{
+			name:    "all keys allowed",
+			s:       "a==1",
+			options: []func(*ProcessOptions) error{},
+			wantErr: false,
+			want:    `a = 1`,
+		},
+		{
+			name: "key allowed",
+			s:    "a==1",
+			options: []func(*ProcessOptions) error{
+				SetAllowedKeys([]string{"a"}),
+			},
+			wantErr: false,
+			want:    `a = 1`,
+		},
+		{
+			name: "key not allowed",
+			s:    "a==1",
+			options: []func(*ProcessOptions) error{
+				SetAllowedKeys([]string{"b"}),
+			},
+			wantErr: true,
+			want:    "",
+		},
+		{
+			name: "key forbidden",
+			s:    "a==1",
+			options: []func(*ProcessOptions) error{
+				SetForbiddenKeys([]string{"a"}),
+			},
+			wantErr: true,
+			want:    "",
+		},
+		{
+			name: "key not forbidden",
+			s:    "a==1",
+			options: []func(*ProcessOptions) error{
+				SetForbiddenKeys([]string{"b"}),
+			},
+			wantErr: false,
+			want:    `a = 1`,
+		},
+		{
+			name: "uppercase key transformer",
+			s:    "a==1",
+			keyTransformers: []func(s string) string{
+				func(s string) string {
+					return strings.ToUpper(s)
+				},
+			},
+			wantErr: false,
+			want:    `A = 1`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var opts []func(*Parser) error
+			opts = append(opts, MySQL())
+			opts = append(opts, WithOperators(tt.customOperators...))
+			opts = append(opts, WithKeyTransformers(tt.keyTransformers...))
+			parser, err := NewParser(opts...)
+			if err != nil {
+				t.Fatalf("error while creating parser: %s", err)
+			}
+			got, err := parser.Process(tt.s, tt.options...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Process() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Process() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func Test_findParts(t *testing.T) {
 	tests := []struct {
 		name       string

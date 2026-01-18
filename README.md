@@ -11,9 +11,11 @@ so RSQL also provides a friendlier syntax for logical operators and some compari
 This is a small RSQL helper library, written in golang.
 It can be used to parse a RSQL string and turn it into a database query string.
 
-Currently, only mongodb is supported out of the box (however it is very easy to extend the parser if needed).
+Currently, MongoDB and MySQL are supported out of the box (it is also very easy to extend the parser if needed).
 
 # basic usage
+
+## MongoDB
 ```go
 package main
 
@@ -35,6 +37,31 @@ func main(){
 	}
 	log.Println(res)
 	// { "$or": [ { "status": "A" }, { "qty": { "$lt": 30 } } ] }
+}
+```
+
+## MySQL
+```go
+package main
+
+import (
+
+"github.com/rbicker/go-rsql"
+"log"
+)
+
+func main(){
+	parser, err := rsql.NewParser(rsql.MySQL())
+	if err != nil {
+		log.Fatalf("error while creating parser: %s", err)
+	}
+	s := `status=="A",qty=lt=30`
+	res, err := parser.Process(s)
+	if err != nil {
+		log.Fatalf("error while parsing: %s", err)
+	}
+	log.Println(res)
+	// (status = "A" OR qty < 30)
 }
 ```
 

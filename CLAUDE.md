@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Go library that parses RSQL (RESTful Service Query Language) strings and converts them into database query formats. RSQL is based on FIQL and provides a URI-friendly syntax for filtering API entries.
 
-**Note**: Despite the repository name `go-rsql-mysql`, this library currently only supports MongoDB query format out of the box. The core architecture is designed to be extensible to other database formats.
+The library supports both MongoDB (JSON format) and MySQL (SQL WHERE clause format) out of the box. The core architecture is designed to be extensible to other database formats.
 
 ## Development Commands
 
@@ -96,6 +96,19 @@ Defined in `Mongo()` function (rsql.go:61-141):
 - `=in=`: In list (uses `$in`, removes parentheses)
 - `=out=`: Not in list (uses `$nin`, removes parentheses)
 
+### Built-in MySQL Operators
+
+Defined in `MySQL()` function (rsql.go:143-224):
+
+- `==`: Equal (formats as `key = value`)
+- `!=`: Not equal (formats as `key != value`)
+- `=gt=`: Greater than (formats as `key > value`)
+- `=ge=`: Greater than or equal (formats as `key >= value`)
+- `=lt=`: Less than (formats as `key < value`)
+- `=le=`: Less than or equal (formats as `key <= value`)
+- `=in=`: In list (formats as `key IN (value)`, removes parentheses)
+- `=out=`: Not in list (formats as `key NOT IN (value)`, removes parentheses)
+
 ### Extending with Custom Operators
 
 Custom operators can be added via `WithOperators()`:
@@ -149,10 +162,10 @@ tests := []struct {
 
 2. **Regex limitations**: The operator regex `([!=])[^=()]*=` requires operators to start with `!` or `=` and end with `=`
 
-3. **MongoDB-specific formatting**: All default operators produce MongoDB JSON query strings. To support other databases (like MySQL mentioned in the repo name), you would need to:
-   - Create a new formatter function similar to `Mongo()`
-   - Implement database-specific operators
-   - Provide AND/OR formatters for that database's query syntax
+3. **Database support**: The library supports both MongoDB and MySQL out of the box:
+   - `rsql.Mongo()`: Produces MongoDB JSON query strings (e.g., `{ "$or": [ ... ] }`)
+   - `rsql.MySQL()`: Produces SQL WHERE clause strings (e.g., `(a = 1 OR b = 2)`)
+   - Additional databases can be supported by creating similar formatter functions
 
 4. **No validation of values**: The parser doesn't validate that values are valid for their types (e.g., numeric operators with string values). This is left to the database layer.
 

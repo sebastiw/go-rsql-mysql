@@ -140,6 +140,89 @@ func Mongo() func(parser *Parser) error {
 	}
 }
 
+// MySQL adds the default MySQL operators to the parser
+func MySQL() func(parser *Parser) error {
+	return func(parser *Parser) error {
+		// operators
+		var operators = []Operator{
+			{
+				"==",
+				func(key, value string) string {
+					return fmt.Sprintf(`%s = %s`, key, value)
+				},
+			},
+			{
+				"!=",
+				func(key, value string) string {
+					return fmt.Sprintf(`%s != %s`, key, value)
+				},
+			},
+			{
+				"=gt=",
+				func(key, value string) string {
+					return fmt.Sprintf(`%s > %s`, key, value)
+				},
+			},
+			{
+				"=ge=",
+				func(key, value string) string {
+					return fmt.Sprintf(`%s >= %s`, key, value)
+				},
+			},
+			{
+				"=lt=",
+				func(key, value string) string {
+					return fmt.Sprintf(`%s < %s`, key, value)
+				},
+			},
+			{
+				"=le=",
+				func(key, value string) string {
+					return fmt.Sprintf(`%s <= %s`, key, value)
+				},
+			},
+			{
+				"=in=",
+				func(key, value string) string {
+					// remove parentheses
+					value = value[1 : len(value)-1]
+					return fmt.Sprintf(`%s IN (%s)`, key, value)
+				},
+			},
+			{
+				"=out=",
+				func(key, value string) string {
+					// remove parentheses
+					value = value[1 : len(value)-1]
+					return fmt.Sprintf(`%s NOT IN (%s)`, key, value)
+				},
+			},
+		}
+		parser.operators = append(parser.operators, operators...)
+		// AND formatter
+		parser.andFormatter = func(ss []string) string {
+			if len(ss) > 1 {
+				return fmt.Sprintf(`(%s)`, strings.Join(ss, " AND "))
+			}
+			if len(ss) == 0 {
+				return ""
+			}
+			return ss[0]
+		}
+		// OR formatter
+		parser.orFormatter = func(ss []string) string {
+			if len(ss) > 1 {
+				return fmt.Sprintf(`(%s)`, strings.Join(ss, " OR "))
+			}
+			if len(ss) == 0 {
+				return ""
+			}
+			return ss[0]
+		}
+		return nil
+	}
+}
+
 // WithOperator adds custom operators to the parser
 func WithOperators(operators ...Operator) func(parser *Parser) error {
 	return func(parser *Parser) error {

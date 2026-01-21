@@ -148,12 +148,18 @@ func MySQL() func(parser *Parser) error {
 			{
 				"==",
 				func(key, value string) string {
+					if strings.EqualFold(value, "null") {
+						return fmt.Sprintf(`%s IS NULL`, key)
+					}
 					return fmt.Sprintf(`%s = %s`, key, value)
 				},
 			},
 			{
 				"!=",
 				func(key, value string) string {
+					if strings.EqualFold(value, "null") {
+						return fmt.Sprintf(`%s IS NOT NULL`, key)
+					}
 					return fmt.Sprintf(`%s != %s`, key, value)
 				},
 			},
